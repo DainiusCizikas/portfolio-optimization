@@ -1,8 +1,8 @@
 import numpy as np
 import yfinance as yf
-import matplotlib.pyplot as plt
-import pandas as pd
-from tabulate import tabulate
+#import pandas as pd
+#import matplotlib.pyplot as plt
+#from tabulate import tabulate
 
 def get_inputs():
     target_tickers = input("Input the comma delimited ticker symbols:\n").split(',')
@@ -25,9 +25,6 @@ def calculate_returns(tickers, start, end):
     start_date = start
     end_date = end
 
-    print(type(ticker_list))
-    print(type(start_date))
-    print(type(end_date))
     df_data = yf.download(ticker_list, start_date, end_date, auto_adjust=False)
 
     adj_close_prices = df_data['Adj Close']
@@ -36,8 +33,13 @@ def calculate_returns(tickers, start, end):
 
     return log_returns
 
-def create_covariance_matrix():
-    print("Create Covariance Matrix")
+def create_covariance_matrix(df_returns):
+
+    covariance_matrix = df_returns.cov()
+    #covariance_matrix.index.name = None
+    #covariance_matrix.columns.name = None
+
+    return covariance_matrix
 
 def mean_variance_optimization():
     print("Mean Variance Optimization")
@@ -54,7 +56,8 @@ if __name__ == '__main__':
 
     adj_log_returns = calculate_returns(input_tickers, input_start_date, input_end_date) #Add type hints?
 
-    create_covariance_matrix()
+    matrix = create_covariance_matrix(adj_log_returns)
+
     mean_variance_optimization()
     in_sample_back_test()
     create_visualization()
