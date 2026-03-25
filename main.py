@@ -2,7 +2,8 @@ import numpy as np
 import yfinance as yf
 import scipy.optimize as sco
 #import pandas as pd
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 #from tabulate import tabulate
 
 def get_inputs():
@@ -67,11 +68,22 @@ def mean_variance_optimization(covariance, returns):
 
     return result.x
 
-def in_sample_back_test():
-    print("In sample Back Test")
+def in_sample_back_test(returns, weights):
+    returns = returns.cumsum()
+    returns = np.exp(returns) - 1
+    portfolio_return =  returns @ weights
 
-def create_visualization():
-    print("Create Visualization")
+    return returns, portfolio_return
+
+def create_visualization(returns, portfolio_returns):
+    plt.plot(returns, label='returns')
+    plt.plot(portfolio_returns, label='portfolio return')
+    plt.legend()
+    plt.plot(portfolio_returns)
+    plt.xlabel('Date')
+    plt.ylabel('Returns')
+    plt.show() #prints cumulative return plot comparing individual stocks and the portfolio
+
 
 
 if __name__ == '__main__':
@@ -85,5 +97,7 @@ if __name__ == '__main__':
 
     for ticker, weight in zip(adj_log_returns.columns, optimized_weights):
         print(f"{ticker}: {weight:.2%}")
-    in_sample_back_test()
-    create_visualization()
+
+    cum_returns, cum_portfolio_returns = in_sample_back_test(adj_log_returns, optimized_weights)
+
+    create_visualization(cum_returns, cum_portfolio_returns)
