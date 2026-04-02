@@ -1,7 +1,8 @@
 import numpy as np
 import yfinance as yf
 import scipy.optimize as sco
-#import pandas as pd
+import seaborn as sns
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 #from tabulate import tabulate
@@ -37,8 +38,6 @@ def create_covariance_matrix(df_returns):
 
     cov_matrix = df_returns.cov()
     annualized_cov_matrix = cov_matrix * 252
-    #covariance_matrix.index.name = None
-    #covariance_matrix.columns.name = None
 
     return annualized_cov_matrix
 
@@ -75,16 +74,46 @@ def in_sample_back_test(returns, weights):
 
     return returns, portfolio_return
 
-def create_visualization(returns, portfolio_returns):
-    plt.plot(returns, label='returns')
-    plt.plot(portfolio_returns, label='portfolio return')
-    plt.legend()
-    plt.plot(portfolio_returns)
-    plt.xlabel('Date')
-    plt.ylabel('Returns')
-    plt.show() #prints cumulative return plot comparing individual stocks and the portfolio
+def create_visualization(returns, portfolio_returns, asset_weights): #Split the calculations into several functions
+    fig, ax = plt.subplots(2, 2, figsize=(15, 10))
 
+    for ticker in returns.columns:
+        ax[0, 0].plot(returns.index, returns[ticker], label=f"{ticker} Only")
 
+    ax[0, 0].plot(returns.index, portfolio_returns, label="Optimized Portfolio", linewidth=2, color='black')
+    ax[0, 0].yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
+    ax[0, 0].set_title("Cumulative Returns")
+    ax[0, 0].set_xlabel("Date")
+    ax[0, 0].set_ylabel("Total Return %")
+    ax[0, 0].legend(loc="upper left")
+    ax[0, 0].grid(True, alpha=0.3)
+
+    correlation = returns.corr()
+    sns.heatmap(correlation, annot=True, ax=ax[0, 1], cmap="coolwarm")
+    ax[0, 1].set_title("Correlation matrix")
+
+    sns.barplot(x=returns.columns, y=asset_weights, ax=ax[1, 0]) #match the colors to previous subplots
+    ax[1, 0].yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
+    ax[1, 0].set_title("Optimal asset weights")
+    ax[1, 0].set_xlabel("Asset")
+    ax[1, 0].set_ylabel("Weight %")
+
+    wealth = portfolio_returns + 1 #will have to be double-checked
+    peak = wealth.cummax()
+    drawdown = (wealth/peak) - 1
+    drawdown = drawdown.clip(upper=0)
+
+    ax[1, 1].plot(portfolio_returns.index, drawdown, label="Drawdown", color='red')
+    ax[1, 1].fill_between(portfolio_returns.index, drawdown, 0, color='red', alpha=0.3)
+    ax[1, 1].yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
+    ax[1, 1].set_xlabel("Date")
+    ax[1, 1].set_ylabel("Max Drawdown %")
+    ax[1, 1].grid(True, alpha=0.3)
+    ax[1, 1].set_title("Max Drawdown")
+
+    plt.tight_layout()
+
+    plt.show()
 
 if __name__ == '__main__':
     input_tickers, input_start_date, input_end_date = get_inputs() #Add type hints?
@@ -100,4 +129,6 @@ if __name__ == '__main__':
 
     cum_returns, cum_portfolio_returns = in_sample_back_test(adj_log_returns, optimized_weights)
 
-    create_visualization(cum_returns, cum_portfolio_returns)
+    create_visualization(cum_returns, cum_portfolio_returns, optimized_weights)
+
+    print() #print sharpe ratio's of portfolio and individual assets
