@@ -7,19 +7,29 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 #from tabulate import tabulate
 
+def is_valid(ticker_unvalidated):
+    try:
+        ticker_checked = yf.Ticker(ticker_unvalidated)
+        history = ticker_checked.history(period='1d')
+        return not history.empty
+    except:
+        return False
+
+
 def get_inputs():
+    start_date = input("Input the start date (yyyy-mm-dd):\n")
+    end_date = input("Input the end date (yyyy-mm-dd):\n")
     target_tickers = [t.strip() for t in input("Input the comma delimited ticker symbols:\n").split(',')]
-    start_date = '2024-01-01' #input("Input the start date (yyyy-mm-dd):\n")
-    end_date = '2024-12-31' #input("Input the end date (yyyy-mm-dd):\n")
+    invalid_tickers = []
 
-    #tickers = []
-    #for i, ticker in enumerate(target_tickers):
-    #    ticker = yf.Ticker(target_tickers[i])
-    #    tickers.append(ticker)
+    for ticker_unvalidated in target_tickers:
+        is_ticker_valid = is_valid(ticker_unvalidated)
+        if not is_ticker_valid:
+            print(f"{ticker_unvalidated} is not a valid ticker symbol. Removing {ticker_unvalidated}")
+            invalid_tickers.append(ticker_unvalidated)
 
-    #Create ticker validation and remove the invalid ones - additional assignment
+    target_tickers = list(set(target_tickers) - set(invalid_tickers))
     #Check the validity of the dates - additional assignment
-    #Make the target_tickers with .strip() - additional assignment
 
     return target_tickers, start_date, end_date
 
@@ -61,7 +71,7 @@ def mean_variance_optimization(covariance, returns):
     bounds = tuple((0, 1) for _ in range(number_assets))
     constraints = ({'type': 'eq', 'fun': lambda w: np.sum(w) - 1})
 
-    extra_data = (annual_average_return, covariance, 0.04)
+    extra_data = (annual_average_return, covariance, risk_free_rate)
 
     result = sco.minimize(fun=objective_function, x0=initial_guess, args = extra_data, method='SLSQP', bounds=bounds, constraints=constraints)
 
@@ -116,9 +126,12 @@ def create_visualization(returns, portfolio_returns, asset_weights): #Split the 
     plt.show()
 
 if __name__ == '__main__':
+    risk_free_rate = 0.04
+
     input_tickers, input_start_date, input_end_date = get_inputs() #Add type hints?
 
     adj_log_returns = calculate_returns(input_tickers, input_start_date, input_end_date) #Add type hints?
+    adj_log_returns_mean = adj_log_returns.mean() * 252
 
     covariance_matrix = create_covariance_matrix(adj_log_returns)
 
@@ -129,6 +142,15 @@ if __name__ == '__main__':
 
     cum_returns, cum_portfolio_returns = in_sample_back_test(adj_log_returns, optimized_weights)
 
-    create_visualization(cum_returns, cum_portfolio_returns, optimized_weights)
+    for index, ticker in enumerate(input_tickers):
+        individual_weights = np.zeros(len(input_tickers))
+        individual_weights[index] = 1
 
-    print() #print sharpe ratio's of portfolio and individual assets
+        individual_sharpe = portfolio_performance(individual_weights, adj_log_returns_mean, covariance_matrix, risk_free_rate)[2]
+        print(f"{ticker} Sharpe Ratio: {individual_sharpe:.2}")
+
+
+    portfolio_sharpe = portfolio_performance(optimized_weights, adj_log_returns_mean, covariance_matrix, risk_free_rate)[2]
+    print(f"Portfolio Sharpe Ratio: {portfolio_sharpe:.2}")
+
+    create_visualization(cum_returns, cum_portfolio_returns, optimized_weights)
